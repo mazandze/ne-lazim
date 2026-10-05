@@ -22,13 +22,36 @@
   a { color: #5B3FA6; }
   .doldur { background: #FFE9A8; padding: 0 3px; }
   .tarih { color: #55607A; font-size: 14px; }
+  footer { margin-top: 44px; font-size: 13px; color: #55607A; }
+  footer a { color: inherit; }
+  .cerez {
+    position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 10;
+    max-width: 576px; margin: 0 auto;
+    background: #FFFFFF;
+    border: 1.5px solid #1B2440;
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(27, 36, 64, .15);
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .cerez p { margin: 0 0 10px; }
+  .cerez-butonlar { display: flex; gap: 8px; }
+  .cerez-butonlar button {
+    flex: 1; font: inherit; font-weight: 600; padding: 9px; border-radius: 4px; cursor: pointer;
+  }
+  .cerez-ana { border: 1.5px solid #5B3FA6; background: #5B3FA6; color: #fff; }
+  .cerez-ana:hover { background: #47308A; border-color: #47308A; }
+  .cerez-ikincil { border: 1.5px solid #1B2440; background: transparent; color: #1B2440; }
+  button:focus-visible { outline: 3px solid #5B3FA6; outline-offset: 2px; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
   <a href="index.html">Ne Lazım'a dön</a>
   <h1>Gizlilik ve kişisel veriler</h1>
-  <p class="tarih">Son güncelleme: <span class="doldur">tarih yaz</span></p>
+  <p class="tarih">Son güncelleme: 5 Ekim 2026</p>
 
   <h2>Kısaca</h2>
   <p>Ne Lazım'da hesap açmazsın. Yazdığın metin dilekçeni, belge listeni ya da CV'ni hazırlamak için kullanılır, sitede saklanmaz.</p>
@@ -43,18 +66,102 @@
   <p>T.C. kimlik numarası, adres ve telefon istenmez. Bunları dilekçe üzerinde kendin doldurursun; kağıda yazdıkların cihazında kalır. "Düzelt" özelliğini kullanırsan dilekçenin başlığı, konusu, gövde metni ve ek listesi yeniden işlenmek üzere gönderilir.</p>
 
   <h2>Yazdıkların nereye gider?</h2>
-  <p>Metnin, cevabı üretmesi için Anthropic adlı şirketin yapay zeka hizmetine gönderilir. Bu hizmetin sunucuları yurt dışındadır ve gönderilen metinler için Anthropic'in kendi saklama kuralları geçerlidir. Site, Vercel adlı barındırma hizmeti üzerinde çalışır.</p>
-  <p>Bu nedenle başkalarına ait özel bilgileri ve dilekçe için gerekmeyen hassas bilgileri (sağlık durumu, kimlik numarası gibi) yazmamanı öneririz.</p>
+  <p>Metnin, cevabı üretmesi için Google'ın Gemini adlı yapay zeka hizmetine gönderilir. Bu hizmetin sunucuları yurt dışındadır. Site, Vercel adlı barındırma hizmeti üzerinde çalışır.</p>
+  <p>Ne Lazım, Gemini'nin ücretsiz sürümünü kullanır. Bu sürümde Google, gönderilen metinleri ve yapay zekanın ürettiği cevapları kendi ürünlerini geliştirmek için kullanabilir. Bu metinler Google'da çalışan insanlar tarafından okunup incelenebilir. Gönderilen metinler için Google'ın kendi saklama kuralları geçerlidir.</p>
+  <p>Bu nedenle kimlik numarası, sağlık durumu, banka bilgisi gibi hassas bilgileri ve başkalarına ait özel bilgileri yazmamanı öneririz. Dilekçe için gereken kişisel bilgileri, çıktısını aldıktan sonra kağıda kendin ekleyebilirsin.</p>
 
   <h2>Çerezler ve istatistik</h2>
-  <p><span class="doldur">Ziyaretçi istatistiği aracı kullanıyorsan burada adını yaz. Kullanmıyorsan "Bu sitede çerez ya da istatistik aracı kullanılmaz." yaz.</span></p>
+  <p>Sitenin nasıl kullanıldığını anlamak için Google Analytics kullanılır. Google Analytics yalnızca sayfanın altındaki kutuda "Kabul et" dersen çalışır ve cihazına çerez bırakır. "Reddet" dersen ya da bir seçim yapmazsan yüklenmez.</p>
+  <p>Kabul edersen, ziyaret ettiğin sayfalar, cihazın ve tarayıcın, yaklaşık konumun gibi bilgiler Google'a gönderilir. Yazdığın dilekçe, belge ya da CV metinleri Google Analytics'e gönderilmez.</p>
+  <p>Seçimin yalnızca kendi tarayıcında saklanır. Fikrini değiştirirsen sayfanın altındaki "Çerez tercihi" bağlantısını kullanabilirsin.</p>
 
   <h2>Haklarınız</h2>
   <p>6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamındaki haklarınla ilgili soruların için bize yazabilirsin.</p>
 
   <h2>İletişim</h2>
-  <p>Veri sorumlusu: <span class="doldur">adın soyadın ya da şirket adın</span><br>
-  E-posta: <span class="doldur">e-posta adresin</span></p>
+  <p>Veri sorumlusu: [AD SOYAD]<br>
+  E-posta: [E-POSTA]</p>
+
+  <footer><a href="#" id="cerez-tercihi">Çerez tercihi</a></footer>
 </main>
+
+<div class="cerez" id="cerez" role="region" aria-label="Çerez tercihi" hidden>
+  <p>Siteyi nasıl kullandığını anlamak için Google Analytics çerezlerini kullanmak istiyoruz. Yalnızca kabul edersen çalışır. <a href="gizlilik.html">Ayrıntılar</a></p>
+  <div class="cerez-butonlar">
+    <button type="button" class="cerez-ikincil" id="cerez-reddet">Reddet</button>
+    <button type="button" class="cerez-ana" id="cerez-kabul">Kabul et</button>
+  </div>
+</div>
+
+<script>
+/* Google Analytics: yalnızca ziyaretçi "Kabul et" derse yüklenir. Seçim localStorage'da tutulur. */
+(function () {
+  const GA_ID = "G-0KDZHNR46S";
+  const ANAHTAR = "ne-lazim-cerez";
+  const kutu = document.getElementById("cerez");
+  let yuklendi = false;
+
+  function oku() { try { return localStorage.getItem(ANAHTAR); } catch (e) { return null; } }
+  function kaydet(deger) { try { localStorage.setItem(ANAHTAR, deger); } catch (e) {} }
+
+  function analyticsYukle() {
+    window["ga-disable-" + GA_ID] = false;
+    if (yuklendi) return;
+    yuklendi = true;
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag("js", new Date());
+    window.gtag("config", GA_ID);
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = "https://www.googletagmanager.com/gtag/js?id=" + GA_ID;
+    document.head.appendChild(s);
+  }
+
+  /* Onay geri çekilirse ölçümü durdurur ve Google Analytics çerezlerini siler. */
+  function analyticsKapat() {
+    window["ga-disable-" + GA_ID] = true;
+    const parcalar = location.hostname.split(".");
+    document.cookie.split(";").forEach(function (c) {
+      const ad = c.split("=")[0].trim();
+      if (ad !== "_ga" && ad.indexOf("_ga_") !== 0) return;
+      document.cookie = ad + "=; Max-Age=0; path=/";
+      for (let i = 0; i < parcalar.length - 1; i++) {
+        document.cookie = ad + "=; Max-Age=0; path=/; domain=" + parcalar.slice(i).join(".");
+      }
+    });
+  }
+
+  function goster() {
+    kutu.hidden = false;
+    document.body.style.paddingBottom = (kutu.offsetHeight + 24) + "px";
+  }
+  function gizle() {
+    kutu.hidden = true;
+    document.body.style.paddingBottom = "";
+  }
+
+  document.getElementById("cerez-kabul").addEventListener("click", function () {
+    kaydet("kabul");
+    gizle();
+    analyticsYukle();
+  });
+  document.getElementById("cerez-reddet").addEventListener("click", function () {
+    kaydet("ret");
+    gizle();
+    analyticsKapat();
+  });
+  document.getElementById("cerez-tercihi").addEventListener("click", function (e) {
+    e.preventDefault();
+    goster();
+    document.getElementById("cerez-kabul").focus();
+  });
+
+  const secim = oku();
+  if (secim === "kabul") analyticsYukle();
+  else if (secim !== "ret") goster();
+})();
+</script>
+
 </body>
 </html>
