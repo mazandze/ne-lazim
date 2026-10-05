@@ -1,17 +1,34 @@
 /* ------------------------------------------------------------------
    Ne Lazım - sunucu fonksiyonu (Vercel)
-   Tarayıcıdan gelen isteği alır, Anthropic API'ye sorar, cevabı döner.
+   Tarayıcıdan gelen isteği alır, yapay zekaya sorar, cevabı döner.
    API anahtarı burada, sunucuda kalır; ziyaretçiler göremez.
 
-   Vercel'de ayarlanacak ortam değişkeni:
-     ANTHROPIC_API_KEY  (zorunlu)
-     CLAUDE_MODEL       (istersen; yazmazsan aşağıdaki model kullanılır)
+   Vercel'de ortam değişkeni olarak ŞUNLARDAN BİRİNİ ayarla:
+     GEMINI_API_KEY     Google Gemini (ücretsiz katmanı var)
+     ANTHROPIC_API_KEY  Anthropic Claude (ücretli)
+   İkisi de varsa Claude kullanılır.
+
+   İstersen:
+     GEMINI_MODEL   kullanılacak Gemini modeli
+     CLAUDE_MODEL   kullanılacak Claude modeli
 
    Talimat metinleri (SISTEM_...) index.html içinde de var.
    Birini değiştirirsen diğerini de değiştir.
 ------------------------------------------------------------------- */
 
-const MODEL = process.env.CLAUDE_MODEL || "claude-haiku-4-5-20251001";
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-haiku-4-5-20251001";
+
+/* Gemini modelleri sık değişiyor. Sırayla denenir, çalışan ilk model
+   kullanılır ve sonraki isteklerde doğrudan ondan başlanır. */
+const GEMINI_MODELLER = [
+  process.env.GEMINI_MODEL,
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash"
+].filter(Boolean);
+let calisanGemini = null;
+
 const GUNLUK_SINIR = 20; // bir ziyaretçinin günde yapabileceği istek sayısı
 
 const TURLER = {
@@ -132,13 +149,85 @@ function istemHazirla(g) {
   return null;
 }
 
+/* Bir hata durumunda tarayıcıya gösterilecek mesajı taşır. */
+function hata(durum, mesaj) {
+  const h = new Error(mesaj);
+  h.durum = durum;
+  return h;
+}
+
+async function claudeSor(istem) {
+  const yanit = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": process.env.ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 1000,
+      system: istem.sistem,
+      messages: [{ role: "user", content: istem.mesaj }]
+    })
+  });
+  if (!yanit.ok) {
+    console.error("Claude hatası", yanit.status); // kullanıcının yazdığı metin kayda geçmez
+    if (yanit.status === 401) throw hata(500, "API anahtarı geçersiz.");
+    throw hata(502, "Yapay zeka şu an cevap veremedi. Biraz sonra tekrar dene.");
+  }
+  const veri = await yanit.json();
+  return (veri.content || []).map((b) => (b.type === "text" ? b.text : "")).join("\n");
+}
+
+async function geminiSor(istem) {
+  const sira = calisanGemini
+    ? [calisanGemini, ...GEMINI_MODELLER.filter((m) => m !== calisanGemini)]
+    : GEMINI_MODELLER;
+  let kotaDoldu = false;
+
+  for (const model of sira) {
+    const yanit = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: istem.sistem }] },
+          contents: [{ role: "user", parts: [{ text: istem.mesaj }] }],
+          generationConfig: { maxOutputTokens: 4096 }
+        })
+      }
+    );
+    if (!yanit.ok) {
+      console.error("Gemini hatası", model, yanit.status); // kullanıcının yazdığı metin kayda geçmez
+      if (yanit.status === 429) kotaDoldu = true;
+      continue; // sıradaki modeli dene
+    }
+    const veri = await yanit.json();
+    const parcalar = (((veri.candidates || [])[0] || {}).content || {}).parts || [];
+    const metin = parcalar.filter((p) => p && !p.thought && typeof p.text === "string").map((p) => p.text).join("\n");
+    if (!metin.trim()) {
+      console.error("Gemini boş cevap", model);
+      continue;
+    }
+    calisanGemini = model;
+    return metin;
+  }
+
+  if (kotaDoldu) throw hata(503, "Sitenin bugünkü ücretsiz kullanım hakkı doldu. Yarın tekrar dene.");
+  throw hata(502, "Yapay zeka şu an cevap veremedi. Biraz sonra tekrar dene.");
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).json({ hata: "Yalnızca POST" });
     return;
   }
-  if (!process.env.ANTHROPIC_API_KEY) {
-    res.status(500).json({ hata: "API anahtarı ayarlanmamış" });
+  const claudeVar = Boolean(process.env.ANTHROPIC_API_KEY);
+  const geminiVar = Boolean(process.env.GEMINI_API_KEY);
+  if (!claudeVar && !geminiVar) {
+    res.status(500).json({ hata: "Site henüz ayarlanmadı: API anahtarı girilmemiş." });
     return;
   }
 
@@ -154,35 +243,15 @@ module.exports = async (req, res) => {
   }
   const istem = govde && typeof govde === "object" ? istemHazirla(govde) : null;
   if (!istem) {
-    res.status(400).json({ hata: "Eksik ya da hatalı bilgi" });
+    res.status(400).json({ hata: "Eksik ya da hatalı bilgi." });
     return;
   }
 
   try {
-    const yanit = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1000,
-        system: istem.sistem,
-        messages: [{ role: "user", content: istem.mesaj }]
-      })
-    });
-    if (!yanit.ok) {
-      console.error("Anthropic hatası", yanit.status); // kullanıcının yazdığı metin kayda geçmez
-      res.status(502).json({ hata: "Yapay zeka şu an cevap veremedi" });
-      return;
-    }
-    const veri = await yanit.json();
-    const metin = (veri.content || []).map((b) => (b.type === "text" ? b.text : "")).join("\n");
+    const metin = claudeVar ? await claudeSor(istem) : await geminiSor(istem);
     res.status(200).json({ metin });
-  } catch (hata) {
-    console.error("İstek hatası", hata && hata.message);
-    res.status(502).json({ hata: "Yapay zeka şu an cevap veremedi" });
+  } catch (h) {
+    if (!h.durum) console.error("İstek hatası", h && h.message);
+    res.status(h.durum || 502).json({ hata: h.durum ? h.message : "Yapay zeka şu an cevap veremedi. Biraz sonra tekrar dene." });
   }
 };
