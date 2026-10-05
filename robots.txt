@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ne-lazim-juou.vercel.app/sitemap.xml
