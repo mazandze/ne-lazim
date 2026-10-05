@@ -257,6 +257,27 @@
   footer { margin-top: 44px; font-size: 13px; color: var(--soluk); }
   [hidden] { display: none !important; }
 
+  /* Çerez onayı */
+  .cerez {
+    position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 10;
+    max-width: 576px; margin: 0 auto;
+    background: var(--kagit);
+    border: 1.5px solid var(--murekkep);
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(27, 36, 64, .15);
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .cerez p { margin: 0 0 10px; }
+  .cerez a { color: var(--muhur); }
+  .cerez-butonlar { display: flex; gap: 8px; }
+  .cerez-butonlar button {
+    flex: 1; font: inherit; font-weight: 600; padding: 9px; border-radius: 4px; cursor: pointer;
+  }
+  .cerez-ana { border: 1.5px solid var(--muhur); background: var(--muhur); color: #fff; }
+  .cerez-ana:hover { background: var(--muhur-koyu); border-color: var(--muhur-koyu); }
+  .cerez-ikincil { border: 1.5px solid var(--murekkep); background: transparent; color: var(--murekkep); }
+
   @media print {
     body { background: #fff; }
     body * { visibility: hidden; }
@@ -419,7 +440,7 @@
     </div>
   </section>
 
-  <footer>Ne Lazım resmi bir kurum değildir. Buradaki metinler yapay zeka ile üretilir. <a href="gizlilik.html" id="gizlilik-bag" hidden>Gizlilik</a></footer>
+  <footer>Ne Lazım resmi bir kurum değildir. Buradaki metinler yapay zeka ile üretilir. <a href="gizlilik.html" id="gizlilik-bag" hidden>Gizlilik</a> <a href="#" id="cerez-tercihi">Çerez tercihi</a></footer>
 </div>
 
 <script>
@@ -529,20 +550,35 @@ function istemHazirla(arac, a) {
   };
 }
 
+/* İstek hiç gidemezse (ağ hatası) bunu ayrıca işaretler. */
+async function istekGonder(url, ayarlar) {
+  try {
+    return await fetch(url, ayarlar);
+  } catch (e) {
+    const h = new Error("ag");
+    h.ag = true;
+    throw h;
+  }
+}
+
 async function yapayZekayaSor(arac, alanlar) {
   let metin;
   if (YAYINDA) {
-    const yanit = await fetch("/api/yaz", {
+    const yanit = await istekGonder("/api/yaz", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ arac, ...alanlar })
     });
     if (yanit.status === 429) { const h = new Error("sinir"); h.sinir = true; throw h; }
-    if (!yanit.ok) throw new Error("HTTP " + yanit.status);
+    if (!yanit.ok) {
+      const h = new Error("HTTP " + yanit.status);
+      try { h.kullaniciMesaji = (await yanit.json()).hata || ""; } catch (_) {}
+      throw h;
+    }
     metin = (await yanit.json()).metin || "";
   } else {
     const { sistem, mesaj } = istemHazirla(arac, alanlar);
-    const yanit = await fetch(DOGRUDAN_URL, {
+    const yanit = await istekGonder(DOGRUDAN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: DOGRUDAN_MODEL, max_tokens: 1000, system: sistem, messages: [{ role: "user", content: mesaj }] })
@@ -559,6 +595,14 @@ async function yapayZekayaSor(arac, alanlar) {
 }
 
 const SINIR_MESAJI = "Bugünlük kullanım hakkın doldu. Yarın tekrar deneyebilirsin.";
+const AG_MESAJI = "İnternet bağlantını kontrol edip tekrar dene.";
+
+/* Kullanıcıya gösterilecek hata mesajını seçer. */
+function hataMesaji(hata, varsayilan) {
+  if (hata.sinir) return SINIR_MESAJI;
+  if (hata.ag) return AG_MESAJI;
+  return hata.kullaniciMesaji || varsayilan;
+}
 
 /* ---------- Sekmeler ---------- */
 const SEKMELER = ["dilekce", "belge", "cv"];
@@ -779,7 +823,7 @@ async function dilekceYaz() {
   } catch (hata) {
     console.error(hata);
     mesajKutusu.className = "durum hata";
-    mesajKutusu.textContent = hata.sinir ? SINIR_MESAJI : "Dilekçe yazılamadı. İnternet bağlantını kontrol edip tekrar dene.";
+    mesajKutusu.textContent = hataMesaji(hata, "Dilekçe yazılamadı. Tekrar dene.");
   } finally {
     buton.disabled = false;
     buton.textContent = "Dilekçeyi yaz";
@@ -813,7 +857,7 @@ async function dilekceDuzelt() {
   } catch (hata) {
     console.error(hata);
     mesajKutusu.className = "durum hata";
-    mesajKutusu.textContent = hata.sinir ? SINIR_MESAJI : "Dilekçe düzeltilemedi. Tekrar dene.";
+    mesajKutusu.textContent = hataMesaji(hata, "Dilekçe düzeltilemedi. Tekrar dene.");
   } finally {
     buton.disabled = false;
     buton.textContent = "Düzelt";
@@ -897,7 +941,7 @@ async function belgeleriListele() {
   } catch (hata) {
     console.error(hata);
     mesajKutusu.className = "durum hata";
-    mesajKutusu.textContent = hata.sinir ? SINIR_MESAJI : "Belgeler listelenemedi. İnternet bağlantını kontrol edip tekrar dene.";
+    mesajKutusu.textContent = hataMesaji(hata, "Belgeler listelenemedi. Tekrar dene.");
   } finally {
     buton.disabled = false;
     buton.textContent = "Belgeleri listele";
@@ -1049,7 +1093,7 @@ async function cvYaz() {
   } catch (hata) {
     console.error(hata);
     mesajKutusu.className = "durum hata";
-    mesajKutusu.textContent = hata.sinir ? SINIR_MESAJI : "CV hazırlanamadı. İnternet bağlantını kontrol edip tekrar dene.";
+    mesajKutusu.textContent = hataMesaji(hata, "CV hazırlanamadı. Tekrar dene.");
   } finally {
     buton.disabled = false;
     buton.textContent = "CV'yi hazırla";
@@ -1072,6 +1116,84 @@ try {
   if (islemParam) { sekmeSec("belge"); $("islem").value = islemParam; }
   if (SEKMELER.includes(p.get("arac"))) sekmeSec(p.get("arac"));
 } catch (e) {}
+</script>
+
+<div class="cerez" id="cerez" role="region" aria-label="Çerez tercihi" hidden>
+  <p>Siteyi nasıl kullandığını anlamak için Google Analytics çerezlerini kullanmak istiyoruz. Yalnızca kabul edersen çalışır. <a href="gizlilik.html">Ayrıntılar</a></p>
+  <div class="cerez-butonlar">
+    <button type="button" class="cerez-ikincil" id="cerez-reddet">Reddet</button>
+    <button type="button" class="cerez-ana" id="cerez-kabul">Kabul et</button>
+  </div>
+</div>
+
+<script>
+/* Google Analytics: yalnızca ziyaretçi "Kabul et" derse yüklenir. Seçim localStorage'da tutulur. */
+(function () {
+  const GA_ID = "G-0KDZHNR46S";
+  const ANAHTAR = "ne-lazim-cerez";
+  const kutu = document.getElementById("cerez");
+  let yuklendi = false;
+
+  function oku() { try { return localStorage.getItem(ANAHTAR); } catch (e) { return null; } }
+  function kaydet(deger) { try { localStorage.setItem(ANAHTAR, deger); } catch (e) {} }
+
+  function analyticsYukle() {
+    window["ga-disable-" + GA_ID] = false;
+    if (yuklendi) return;
+    yuklendi = true;
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag("js", new Date());
+    window.gtag("config", GA_ID);
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = "https://www.googletagmanager.com/gtag/js?id=" + GA_ID;
+    document.head.appendChild(s);
+  }
+
+  /* Onay geri çekilirse ölçümü durdurur ve Google Analytics çerezlerini siler. */
+  function analyticsKapat() {
+    window["ga-disable-" + GA_ID] = true;
+    const parcalar = location.hostname.split(".");
+    document.cookie.split(";").forEach(function (c) {
+      const ad = c.split("=")[0].trim();
+      if (ad !== "_ga" && ad.indexOf("_ga_") !== 0) return;
+      document.cookie = ad + "=; Max-Age=0; path=/";
+      for (let i = 0; i < parcalar.length - 1; i++) {
+        document.cookie = ad + "=; Max-Age=0; path=/; domain=" + parcalar.slice(i).join(".");
+      }
+    });
+  }
+
+  function goster() {
+    kutu.hidden = false;
+    document.body.style.paddingBottom = (kutu.offsetHeight + 24) + "px";
+  }
+  function gizle() {
+    kutu.hidden = true;
+    document.body.style.paddingBottom = "";
+  }
+
+  document.getElementById("cerez-kabul").addEventListener("click", function () {
+    kaydet("kabul");
+    gizle();
+    analyticsYukle();
+  });
+  document.getElementById("cerez-reddet").addEventListener("click", function () {
+    kaydet("ret");
+    gizle();
+    analyticsKapat();
+  });
+  document.getElementById("cerez-tercihi").addEventListener("click", function (e) {
+    e.preventDefault();
+    goster();
+    document.getElementById("cerez-kabul").focus();
+  });
+
+  const secim = oku();
+  if (secim === "kabul") analyticsYukle();
+  else if (secim !== "ret") goster();
+})();
 </script>
 </body>
 </html>
